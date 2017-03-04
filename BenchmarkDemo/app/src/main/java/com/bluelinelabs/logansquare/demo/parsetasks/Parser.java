@@ -11,7 +11,7 @@ public abstract class Parser extends AsyncTask<Void, Void, ParseResult> {
     }
 
     private final ParseListener mParseListener;
-    private final String mJsonString;
+    protected final String mJsonString;
 
     protected Parser(ParseListener parseListener, String jsonString) {
         mParseListener = parseListener;

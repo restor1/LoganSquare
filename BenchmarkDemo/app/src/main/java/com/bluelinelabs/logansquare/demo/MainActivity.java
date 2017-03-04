@@ -3,12 +3,18 @@ package com.bluelinelabs.logansquare.demo;
 import android.app.AlertDialog;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 
 import com.bluelinelabs.logansquare.LoganSquare;
 import com.bluelinelabs.logansquare.demo.model.Response;
+import com.bluelinelabs.logansquare.demo.network.parsetasks.GsonNetworkParser;
+import com.bluelinelabs.logansquare.demo.network.parsetasks.JacksonDatabindNetworkParser;
+import com.bluelinelabs.logansquare.demo.network.parsetasks.LoganSquareNetworkParser;
+import com.bluelinelabs.logansquare.demo.network.parsetasks.MoshiNetworkParser;
 import com.bluelinelabs.logansquare.demo.parsetasks.GsonParser;
 import com.bluelinelabs.logansquare.demo.parsetasks.JacksonDatabindParser;
 import com.bluelinelabs.logansquare.demo.parsetasks.LoganSquareParser;
@@ -63,6 +69,8 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitNetwork().build());
+
         mJsonStringsToParse = readJsonFromFile();
         mResponsesToSerialize = getResponsesToParse();
 
@@ -73,6 +81,13 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void onClick(View v) {
                 performParseTests();
+            }
+        });
+
+        findViewById(R.id.btn_parse_network_tests).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                performParseNetworkTests();
             }
         });
 
@@ -98,6 +113,25 @@ public class MainActivity extends ActionBarActivity {
                 parsers.add(new JacksonDatabindParser(mParseListener, jsonString, objectMapper));
                 parsers.add(new MoshiParser(mParseListener, jsonString, moshi));
                 parsers.add(new LoganSquareParser(mParseListener, jsonString));
+            }
+        }
+
+        for (Parser parser : parsers) {
+            parser.executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
+        }
+    }
+
+    private void performParseNetworkTests() {
+        mBarChart.clear();
+        mBarChart.setSections(new String[] {"Parse 60 items", "Parse 20 items", "Parse 7 items", "Parse 2 items"});
+
+        List<Parser> parsers = new ArrayList<>();
+        for (String jsonString : mJsonStringsToParse) {
+            for (int iteration = 0; iteration < ITERATIONS; iteration++) {
+                parsers.add(new GsonNetworkParser(mParseListener, jsonString));
+                parsers.add(new JacksonDatabindNetworkParser(mParseListener, jsonString));
+                parsers.add(new MoshiNetworkParser(mParseListener, jsonString));
+                parsers.add(new LoganSquareNetworkParser(mParseListener, jsonString));
             }
         }
 
@@ -148,13 +182,13 @@ public class MainActivity extends ActionBarActivity {
                 break;
         }
 
-        if (parser instanceof GsonParser) {
+        if (parser instanceof GsonParser || parser instanceof GsonNetworkParser) {
             mBarChart.addTiming(section, 0, parseResult.runDuration / 1000f);
-        } else if (parser instanceof JacksonDatabindParser) {
+        } else if (parser instanceof JacksonDatabindParser || parser instanceof JacksonDatabindNetworkParser) {
             mBarChart.addTiming(section, 1, parseResult.runDuration / 1000f);
-        } else if (parser instanceof LoganSquareParser) {
+        } else if (parser instanceof LoganSquareParser || parser instanceof LoganSquareNetworkParser) {
             mBarChart.addTiming(section, 2, parseResult.runDuration / 1000f);
-        } else if (parser instanceof MoshiParser) {
+        } else if (parser instanceof MoshiParser || parser instanceof MoshiNetworkParser) {
             mBarChart.addTiming(section, 3, parseResult.runDuration / 1000f);
         }
     }
